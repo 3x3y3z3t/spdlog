@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "spdlog/details/console_globals.h"
-#include "spdlog/details/synchronous_factory.h"
-#include "spdlog/sinks/sink.h"
+#include <spdlog/details/console_globals.h>
+#include <spdlog/details/synchronous_factory.h>
+#include <spdlog/sinks/sink.h>
 #include <cstdio>
 
 namespace spdlog {
@@ -71,4 +71,6 @@ std::shared_ptr<logger> stderr_logger_st(const std::string &logger_name);
 
 } // namespace spdlog
 
+#ifdef SPDLOG_HEADER_ONLY
 #include "stdout_sinks-inl.h"
+#endif

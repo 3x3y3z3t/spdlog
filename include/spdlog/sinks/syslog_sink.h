@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "spdlog/sinks/base_sink.h"
-#include "spdlog/details/null_mutex.h"
+#include <spdlog/sinks/base_sink.h>
+#include <spdlog/details/null_mutex.h>
 
 #include <array>
 #include <string>
@@ -22,13 +22,13 @@ class syslog_sink : public base_sink<Mutex>
 public:
     syslog_sink(std::string ident, int syslog_option, int syslog_facility, bool enable_formatting)
         : enable_formatting_{enable_formatting}
-        , syslog_levels_{/* spdlog::level::trace      */ LOG_DEBUG,
+        , syslog_levels_{{/* spdlog::level::trace      */ LOG_DEBUG,
               /* spdlog::level::debug      */ LOG_DEBUG,
               /* spdlog::level::info       */ LOG_INFO,
               /* spdlog::level::warn       */ LOG_WARNING,
               /* spdlog::level::err        */ LOG_ERR,
               /* spdlog::level::critical   */ LOG_CRIT,
-              /* spdlog::level::off        */ LOG_INFO}
+              /* spdlog::level::off        */ LOG_INFO}}
         , ident_{std::move(ident)}
     {
         // set ident to be program name if empty
@@ -47,10 +47,9 @@ protected:
     void sink_it_(const details::log_msg &msg) override
     {
         string_view_t payload;
-
+        memory_buf_t formatted;
         if (enable_formatting_)
         {
-            fmt::memory_buffer formatted;
             base_sink<Mutex>::formatter_->format(msg, formatted);
             payload = string_view_t(formatted.data(), formatted.size());
         }
@@ -59,15 +58,22 @@ protected:
             payload = msg.payload;
         }
 
-        int length = std::min<std::common_type<int, std::size_t>::type>(std::numeric_limits<int>::max(), payload.size());
-        ::syslog(syslog_prio_from_level(msg), "%.*s", length, payload.data());
+        size_t length = payload.size();
+        // limit to max int
+        if (length > static_cast<size_t>(std::numeric_limits<int>::max()))
+        {
+            length = static_cast<size_t>(std::numeric_limits<int>::max());
+        }
+
+        ::syslog(syslog_prio_from_level(msg), "%.*s", static_cast<int>(length), payload.data());
     }
 
     void flush_() override {}
     bool enable_formatting_ = false;
 
 private:
-    std::array<int, 7> syslog_levels_;
+    using levels_array = std::array<int, 7>;
+    levels_array syslog_levels_;
     // must store the ident because the man says openlog might use the pointer as
     // is and not a string copy
     const std::string ident_;
@@ -77,7 +83,7 @@ private:
     //
     int syslog_prio_from_level(const details::log_msg &msg) const
     {
-        return syslog_levels_.at(static_cast<int>(msg.level));
+        return syslog_levels_.at(static_cast<levels_array::size_type>(msg.level));
     }
 };
 
